@@ -129,7 +129,7 @@ class atlas_graph:
 	def xi_ind_to_ambient(self, xi, ind):
 		# Get chart from ind
 		x_0, L_p, M_p, _, h_mat = self.chart_dict[ind]
-		for return self.xi_chart_to_ambient(xi, x_0, L_p, M_p, h_mat)
+		return self.xi_chart_to_ambient(xi, x_0, L_p, M_p, h_mat)
 
 	def store_atlas(self, file_pre):
 		for key in self.chart_dict.keys():
@@ -180,19 +180,19 @@ class atlas_pam(atlas_graph):
 		### Create charts from k-medoids
 		for ind in range(self.n_charts):
 			inds = (km.labels == ind)
-			pts = self.data[inds, :]
+			pts = self.X[inds, :]
 			quad_params = quad_fit_full(pts, self.d)
-			x_0 = self.data[km.medoids[j]]
+			x_0 = self.X[km.medoids[ind]]
 			L_p = quad_params["L"]
 			M_p = quad_params["M"]
 			h_mat = quad_params["h_mat"]
-			X_0 = x_0.reshape(1, self.d)
-			dist_vec = euclidean_distance(X_0, pts)
+			X_0 = x_0.reshape(1, self.D)
+			dist_vec = euclidean_distances(X_0, pts)
 			rad = np.max(dist_vec)
 			# Save chart
 			self.chart_dict[ind] = (x_0, L_p, M_p, rad, h_mat)
 			# Save boundary function
 			self.boundary_fun_dict[ind] = self.construct_boundary_fun(rad, h_mat)
 			# Update logprobs
-			new_logprobs = self.chart_to_fun(X, x_0, L, M, h_mat)
-			self.max_logprobs = np.max([self.max_logprobs, new_logprobs], axis=1)
+			new_logprobs = self.chart_to_fun(self.X, x_0, L_p, M_p, h_mat)
+			self.max_logprobs = np.max([self.max_logprobs, new_logprobs], axis=0)
