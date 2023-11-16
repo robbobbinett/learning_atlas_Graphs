@@ -14,7 +14,7 @@ bias_vec_amb = np.array([ 2.,  0., -2.,  0.,  0.,  0., -2., -0.,  2.])
 
 class atlas_yao(atlas_pam):
 	def __init__(self, X, X_pos, X_neg, n_charts, km_max_iter=1000,
-			kernel_fun=gaussian_kernel):
+			kernel_fun=gaussian_kernel, grid_len=100):
 		# Make sure all three datasets are nine-dimensional
 		Xs = [X, X_pos, X_neg]
 		for XX in Xs:
@@ -46,8 +46,10 @@ class atlas_yao(atlas_pam):
 				x = X_pos[k, :]
 				Xi_pos[k, :] = self.ingest_ambient_point_given_ind(x, j)
 			for k in range(self.N_neg):
-				x = X_neg(self.N_neg)
+				x = X_neg[k, :]
 				Xi_neg[k, :] = self.ingest_ambient_point_given_ind(x, j)
+			self.Xi_pos_dict[j] = Xi_pos
+			self.Xi_neg_dict[j] = Xi_neg
 		# Create enormous graph that comprises a fine mesh of
 		# the union of the images of the coordinate charts
 		print("Constructing enormous graph for brute-force geodesic approximation.")
@@ -61,18 +63,19 @@ class atlas_yao(atlas_pam):
 			if nx.is_connected(self.G_brute):
 				cond = True
 			eps += 0.1
-		n_brute = X_brute.shape[0]
+		n_brute = self.X_brute.shape[0]
 		self.chart_assignments_brute = np.zeros(n_brute,
-						dtype=ind)
+						dtype=int)
 		for j in range(n_brute):
-			x = X_brute[j, :]
-			self.chart_assignments_brute[j] = self.identify_chart(j)
+			x = self.X_brute[j, :]
+			self.chart_assignments_brute[j] = self.identify_chart(x)
 		self.Xi_brute_dict = {}
 		for j in range(n_charts):
 			Xi_brute = np.zeros((n_brute, 2))
 			for k in range(n_brute):
-				x = X_brute[k, :]
+				x = self.X_brute[k, :]
 				Xi_brute[k, :] = self.ingest_ambient_point_given_ind(x, j)
+			self.Xi_brute_dict[j] = Xi_brute
 		# Save K
 		self.K_dict = {}
 		for ind in range(n_charts):
@@ -106,7 +109,7 @@ class atlas_yao(atlas_pam):
 
 	def evaluate_pos_flow_spectrum(self, xi_0, chart, dist_max=1.0):
 		# Prune away points too far by ambient metric
-		x_0 = self.xi_chart_to_ambient(xi_0, chart)
+		x_0 = self.xi_ind_to_ambient(xi_0, chart)
 		X_0 = x_0.reshape(1, 9)
 		dist_vec = euclidean_distances(X_0, self.X_pos)[0, :]
 		to_keep = (dist_vec <= dist_max)
@@ -115,7 +118,7 @@ class atlas_yao(atlas_pam):
 		for j in range(self.N_pos):
 			if to_keep[j]:
 				chart_otra = self.chart_assignments_pos[j]
-				xi_otra = self.Xi_pos_dict[chart][j, :]
+				xi_otra = self.Xi_pos_dict[chart_otra][j, :]
 				xi_prime, dist = self.logarithm_through_graph(xi_0,
 							chart, xi_otra,
 							chart_otra)
@@ -132,7 +135,7 @@ class atlas_yao(atlas_pam):
 
 	def evaluate_neg_flow_spectrum(self, xi_0, chart, dist_max=1.0):
 		# Prune away points too far by ambient metric
-		x_0 = self.xi_chart_to_ambient(xi_0, chart)
+		x_0 = self.xi_ind_to_ambient(xi_0, chart)
 		X_0 = x_0.reshape(1, 9)
 		dist_vec = euclidean_distances(X_0, self.X_neg)[0, :]
 		to_keep = (dist_vec <= dist_max)
@@ -158,7 +161,7 @@ class atlas_yao(atlas_pam):
 
 	def logarithm_through_graph(self, xi_0, chart_0, xi_1, chart_1):
 		dist_0, dist_1, path, path_len = self.approximate_shortest_path(xi_0,
-							chart_0, ind_1,
+							chart_0, xi_1,
 							chart_1)
 		xi_prime = np.zeros(2)
 		xi_dequeue = xi_1.copy()
@@ -174,7 +177,7 @@ class atlas_yao(atlas_pam):
 				dist += naive_approximate_dist(xi_queue, xi_dequeue, K_queue)
 				xi_dequeue = xi_queue
 			else:
-				x = self.xi_chart_to_ambient(xi_dequeue, chart_dequeue)
+				x = self.xi_ind_to_ambient(xi_dequeue, chart_dequeue)
 				amb_vec = self.xi_xi_prime_chart_to_meta_tan_plane(xi_dequeue,
 						xi_prime, chart_dequeue)
 				xi_prime = self.x_amb_vec_chart_to_meta_tan_project(x,
@@ -182,7 +185,7 @@ class atlas_yao(atlas_pam):
 				center_queue, L_queue, _, _, _ = self.chart_dict[chart_queue]
 				xi_dequeue_alt = L_queue.T @ (x - center_queue)
 				xi_prime += xi_dequeue_alt - xi_queue
-				K_queue = self.K_dict[chart]
+				K_queue = self.K_dict[chart_queue]
 				dist += naive_approximate_dist(xi_queue,
 							xi_dequeue,
 							K_queue)
@@ -193,8 +196,8 @@ class atlas_yao(atlas_pam):
 		return xi_prime, dist
 
 	def approximate_shortest_path(self, xi_0, chart_0, xi_1, chart_1):
-		x_0 = self.xi_chart_to_ambient(xi_0, chart_0)
-		x_1 = self.xi_chart_to_ambient(xi_1, chart_1)
+		x_0 = self.xi_ind_to_ambient(xi_0, chart_0)
+		x_1 = self.xi_ind_to_ambient(xi_1, chart_1)
 		ind_0 = self.find_closest_brute_point(x_0)
 		ind_1 = self.find_closest_brute_point(x_1)
 		x_prime_0 = self.X_brute[ind_0, :]
@@ -234,7 +237,7 @@ class atlas_yao(atlas_pam):
 		K = self.K_dict[chart]
 		for j in range(7):
 			K_mat = K[:, :, j]
-			normal_grad.append(K_mat @ xi)
+			normal_grads.append(K_mat @ xi)
 		normal_mat_pre = np.vstack(normal_grads)
 		normal_mat = 2*M @ normal_mat_pre
 		return (normal_mat + L) @ xi_prime
@@ -335,7 +338,7 @@ class atlas_yao(atlas_pam):
 			f = boundary_fun(xi_bou)
 			if f >= 0:
 				center, L, M, _, _ = self.chart_dict[chart_bou]
-				x = self.xi_chart_to_ambient(xi_bou,
+				x = self.xi_ind_to_ambient(xi_bou,
 						chart_bou)
 				dists = []
 				for chart_bou_prime in range(self.n_charts):
@@ -365,12 +368,12 @@ class atlas_yao(atlas_pam):
 							chart_0, xi_1,
 							chart_1)
 		if len(path) <= 2:
-			x_temp = self.xi_chart_to_ambient(xi_1, chart_1)
+			x_temp = self.xi_ind_to_ambient(xi_1, chart_1)
 			center_0, L_0, _, _, _ = self.chart_dict[chart_0]
 			xi_new = L_0.T @ (x_temp - center_0)
 			xi_mean = (xi_0 + xi_new)/2
 			# Recompute xi_mean's chart assignment
-			x_mean = self.xi_chart_to_ambient(xi_new, chart_0)
+			x_mean = self.xi_ind_to_ambient(xi_new, chart_0)
 			chart_mean = identify_chart(x_mean)
 			center_mean, L_mean, _, _, _ = self.chart_dict[chart_mean]
 			xi_mean_final = L_mean.T @ (x_mean - center_mean)
