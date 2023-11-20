@@ -2042,3 +2042,46 @@ def rooted_tan_plane_conformity(L, L_prime, p, p_prime):
 	conformity["membership"] = membership
 	conformity["membership_prime"] = membership_prime
 	return conformity
+
+def naive_approximate_dist(xi_0, xi_1, K):
+	# Initial parameters
+	d, _, nmd = K.shape
+	xi_dot = xi_1 - xi_0
+	# Coefficients lambda, mu, and kappa
+	lam = np.dot(xi_dot, xi_dot)
+	kappa_0 = np.zeros(nmd)
+	kappa_1 = np.zeros(nmd)
+	for j in range(nmd):
+		K_mat = K[:, :, j]
+		kappa_0[j] = np.dot(xi_dot, np.dot(K_mat, xi_0))
+		kappa_1[j] = np.dot(xi_dot, np.dot(K_mat, xi_1))
+	mu_00 = np.dot(kappa_0, kappa_0)
+	mu_01 = np.dot(kappa_0, kappa_1)
+	mu_11 = np.dot(kappa_1, kappa_1)
+	# Coefficients for the quadratic in the operand
+	### Experimental coefficients
+	### End experimental coefficients
+	c_sqr = mu_00 + mu_11 - 2*mu_01
+	if not np.isclose(0, c_sqr):
+		c = np.sqrt(c_sqr)
+		A = mu_01 - mu_00
+		B = lam + mu_00
+		a = A / c_sqr
+		b = B / c_sqr
+		# Compute summand of solved integral
+		a_sqr = a**2
+		Aa = A*a
+		summand_a = (1+a)/2*np.sqrt(c_sqr+A+Aa+B)
+		summand_b = -a/2*np.sqrt(Aa - A + B)
+		summand_c = (B - A)/(2*c)*np.log(c_sqr+A+np.sqrt((c_sqr+A)**2+c_sqr*(B - A)))
+		summand_d = (A - B)/(2*c)*np.log(A+np.sqrt(A**2+c_sqr*(B - A)))
+		summed = summand_a + summand_b + (summand_c + summand_d)
+		return summed
+	else:
+		denom = 3*(mu_01 - mu_00)
+		if not np.isclose(0, denom):
+			summand_a = (lam + 2*mu_01 - mu_00)**1.5
+			summand_b = -(lam + mu_00)**1.5
+			return (summand_a + summand_b) / denom
+		else:
+			return 0.0
