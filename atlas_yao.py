@@ -125,13 +125,16 @@ class atlas_yao(atlas_pam):
 				if dist <= dist_max:
 					kern_coeff = self.kernel(dist)
 					xi_prime_list.append(kern_coeff*xi_prime)
-		Xi_prime = np.vstack(xi_prime_list)
-		cov_mat = np.cov(Xi_prime, rowvar=False)
 		try:
+			Xi_prime = np.vstack(xi_prime_list)
+			cov_mat = np.cov(Xi_prime, rowvar=False)
 			_, V = np.linalg.eigh(cov_mat)
-		except:
-			raise ValueError(str(xi_prime_list))
-		return V, np.mean(Xi_prime, axis=0)
+			eig_vec = V[:, 1]
+			to_return = eig_vec
+		except (ValueError, np.linalg.LinAlgError) as error:
+			to_return = np.random.randn(2)
+			#raise ValueError(str(xi_prime_list))
+		return to_return, np.mean(Xi_prime, axis=0)
 
 	def evaluate_neg_flow_spectrum(self, xi_0, chart, dist_max=1.0):
 		# Prune away points too far by ambient metric
@@ -151,13 +154,16 @@ class atlas_yao(atlas_pam):
 				if dist <= dist_max:
 					kern_coeff = self.kernel(dist)
 					xi_prime_list.append(kern_coeff*xi_prime)
-		Xi_prime = np.vstack(xi_prime_list)
-		cov_mat = np.cov(Xi_prime, rowvar=False)
 		try:
+			Xi_prime = np.vstack(xi_prime_list)
+			cov_mat = np.cov(Xi_prime, rowvar=False)
 			_, V = np.linalg.eigh(cov_mat)
-		except:
-			raise ValueError(str(xi_prime_list))
-		return V, np.mean(Xi_prime, axis=0)
+			eig_vec = V[:, 1]
+			to_return = eig_vec
+		except (ValueError, np.linalg.LinAlgError) as error:
+			to_return = np.random.randn(2)
+			#raise ValueError(str(xi_prime_list))
+		return to_return, np.mean(Xi_prime, axis=0)
 
 	def logarithm_through_graph(self, xi_0, chart_0, xi_1, chart_1):
 		dist_0, dist_1, path, path_len = self.approximate_shortest_path(xi_0,
@@ -471,7 +477,7 @@ class atlas_yao(atlas_pam):
 		f = boundary_fun(xi)
 		if f >= 0:
 			center, L, M, _, h_mat = self.chart_dict[chart]
-			xi_quad = get_quadatic_and_const_terms(xi)
+			xi_quad = get_quadratic_and_const_terms(xi)
 			x = (M@h_mat.T@xi_quad) + (L@xi) + center
 			dists = []
 			xi_prime_pre = self.xi_xi_prime_chart_to_meta_tan_plane(xi,
@@ -481,7 +487,7 @@ class atlas_yao(atlas_pam):
 				dist = np.linalg.norm(x - center_prime)
 				dists.append(dist)
 			chart = np.argmin(dists)
-			center, L, _, _, _ = self.center_dict[chart]
+			center, L, _, _, _ = self.chart_dict[chart]
 			xi = L.T @ (x - center)
 			xi_prime = self.x_amb_vec_chart_to_meta_tan_project(x,
 						xi_prime_pre, chart)
@@ -535,7 +541,7 @@ class atlas_yao(atlas_pam):
 		f = boundary_fun(xi)
 		if f >= 0:
 			center, L, M, _, h_mat = self.chart_dict[chart]
-			xi_quad = get_quadatic_and_const_terms(xi)
+			xi_quad = get_quadratic_and_const_terms(xi)
 			x = (M@h_mat.T@xi_quad) + (L@xi) + center
 			dists = []
 			xi_prime_pre = self.xi_xi_prime_chart_to_meta_tan_plane(xi,
@@ -545,7 +551,7 @@ class atlas_yao(atlas_pam):
 				dist = np.linalg.norm(x - center_prime)
 				dists.append(dist)
 			chart = np.argmin(dists)
-			center, L, _, _, _ = self.center_dict[chart]
+			center, L, _, _, _ = self.chart_dict[chart]
 			xi = L.T @ (x - center)
 			xi_prime = self.x_amb_vec_chart_to_meta_tan_project(x,
 						xi_prime_pre, chart)
