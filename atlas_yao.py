@@ -1,3 +1,5 @@
+from time import time
+
 import numpy as np
 import networkx as nx
 from sklearn.metrics.pairwise import euclidean_distances
@@ -149,7 +151,7 @@ class atlas_yao(atlas_pam):
 		for j in range(self.N_neg):
 			if to_keep[j]:
 				chart_otra = self.chart_assignments_neg[j]
-				xi_otra = self.Xi_neg_dict[chart][j, :]
+				xi_otra = self.Xi_neg_dict[chart_otra][j, :]
 				xi_prime, dist = self.logarithm_through_graph(xi_0,
 							chart, xi_otra,
 							chart_otra)
