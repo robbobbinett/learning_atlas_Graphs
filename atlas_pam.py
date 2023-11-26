@@ -141,7 +141,8 @@ class atlas_graph:
 			np.save(file_pre+"_h_mat"+str(key)+".npy", h_mat)
 
 class atlas_pam(atlas_graph):
-	def __init__(self, data, d, n_charts, km_max_iter=1000):
+	def __init__(self, data, d, n_charts, km_max_iter=1000, save_dist_mat=False,
+			load_dist_mat=False):
 		# Initialize parent class
 		super().__init__(data, d)
 
@@ -154,21 +155,26 @@ class atlas_pam(atlas_graph):
 
 		### Compute induced pairwise distances
 		print("Getting graph as sparse matrix...")
-		knn_graph = nn_sklearn.kneighbors_graph(mode="distance")
+		knn_graph = nn_sklearn.kneighbors_graph()
 		print("Done")
 		print("Getting graph from sparse matrix...")
 		self.G = nx.from_scipy_sparse_array(knn_graph)
 		print("Done")
 
 		### Perform Floyd-Warshall on NetworkX
-		print("Generating distance matrix...")
-		self.dist_mat = np.zeros((self.N, self.N))
-		for j in tqdm(range(self.N)):
-			for k in range(j+1, self.N):
-				val = nx.shortest_path_length(self.G,
-					source=j, target=k, weight="weight")
-				self.dist_mat[j, k] = val
-				self.dist_mat[k, j] = val
+		if load_dist_mat:
+			self.dist_mat = np.load("saved_dist_mat.npy")
+		else:
+			print("Generating distance matrix...")
+			self.dist_mat = np.zeros((self.N, self.N))
+			for j in tqdm(range(self.N)):
+				for k in range(j+1, self.N):
+					val = nx.shortest_path_length(self.G,
+						source=j, target=k, weight="weight")
+					self.dist_mat[j, k] = val
+					self.dist_mat[k, j] = val
+		if save_dist_mat:
+			np.save("saved_dist_mat.npy", self.dist_mat)
 		#self.dist_mat = dist_mat_from_generator(dist_mat_gen, self.N)
 		print("Done")
 

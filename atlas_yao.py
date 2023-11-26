@@ -14,13 +14,15 @@ bias_vec_amb = np.array([ 2.,  0., -2.,  0.,  0.,  0., -2., -0.,  2.])
 
 class atlas_yao(atlas_pam):
 	def __init__(self, X, X_pos, X_neg, n_charts, km_max_iter=1000,
-			kernel_fun=gaussian_kernel, grid_len=100):
+			kernel_fun=gaussian_kernel, grid_len=100,
+			save_dist_mat=False, load_dist_mat=False):
 		# Make sure all three datasets are nine-dimensional
 		Xs = [X, X_pos, X_neg]
 		for XX in Xs:
 			assert XX.shape[1] == 9
 		# Initialize using parent constructor
-		super().__init__(X, 2, n_charts)
+		super().__init__(X, 2, n_charts, save_dist_mat=save_dist_mat,
+					load_dist_mat=load_dist_mat)
 		# Save attributes respective to class data
 		self.X_pos = X_pos
 		self.X_neg = X_neg
@@ -129,12 +131,12 @@ class atlas_yao(atlas_pam):
 			Xi_prime = np.vstack(xi_prime_list)
 			cov_mat = np.cov(Xi_prime, rowvar=False)
 			_, V = np.linalg.eigh(cov_mat)
-			eig_vec = V[:, 1]
-			to_return = eig_vec
+			#eig_vec = V[:, 1]
+			#to_return = eig_vec
 		except (ValueError, np.linalg.LinAlgError) as error:
-			to_return = np.random.randn(2)
-			#raise ValueError(str(xi_prime_list))
-		return to_return, np.mean(Xi_prime, axis=0)
+			#to_return = np.random.randn(2)
+			raise ValueError(str(xi_prime_list))
+		return V, np.mean(Xi_prime, axis=0)
 
 	def evaluate_neg_flow_spectrum(self, xi_0, chart, dist_max=1.0):
 		# Prune away points too far by ambient metric
@@ -158,12 +160,12 @@ class atlas_yao(atlas_pam):
 			Xi_prime = np.vstack(xi_prime_list)
 			cov_mat = np.cov(Xi_prime, rowvar=False)
 			_, V = np.linalg.eigh(cov_mat)
-			eig_vec = V[:, 1]
-			to_return = eig_vec
+			#eig_vec = V[:, 1]
+			#to_return = eig_vec
 		except (ValueError, np.linalg.LinAlgError) as error:
-			to_return = np.random.randn(2)
-			#raise ValueError(str(xi_prime_list))
-		return to_return, np.mean(Xi_prime, axis=0)
+			#to_return = np.random.randn(2)
+			raise ValueError(str(xi_prime_list))
+		return V, np.mean(Xi_prime, axis=0)
 
 	def logarithm_through_graph(self, xi_0, chart_0, xi_1, chart_1):
 		dist_0, dist_1, path, path_len = self.approximate_shortest_path(xi_0,
@@ -274,6 +276,10 @@ class atlas_yao(atlas_pam):
 		V_pos, _ = self.evaluate_pos_flow_spectrum(xi_pos,
 					chart_pos, dist_max=dist_max)
 		xi_prime_pos = V_pos[:, 1]
+		"""
+		xi_prime_pos, _ = self.evaluate_pos_flow_spectrum(xi_pos,
+					chart_pos, dist_max=dist_max)
+		"""
 		##### Align initial vector
 		amb_vec_pos = self.xi_xi_prime_chart_to_meta_tan_plane(xi_pos,
 					xi_prime_pos, chart_pos)
@@ -289,6 +295,10 @@ class atlas_yao(atlas_pam):
 		V_neg, _ = self.evaluate_neg_flow_spectrum(xi_neg,
 					chart_neg, dist_max=dist_max)
 		xi_prime_neg = V_neg[:, 1]
+		"""
+		xi_prime_neg, _ = self.evaluate_neg_flow_spectrum(xi_neg,
+					chart_neg, dist_max=dist_max)
+		"""
 		##### Align initial vector
 		amb_vec_neg = self.xi_xi_prime_chart_to_meta_tan_plane(xi_neg,
 					xi_prime_neg, chart_neg)
