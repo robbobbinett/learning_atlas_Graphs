@@ -17,14 +17,16 @@ bias_vec_amb = np.array([ 2.,  0., -2.,  0.,  0.,  0., -2., -0.,  2.])
 class atlas_yao(atlas_pam):
 	def __init__(self, X, X_pos, X_neg, n_charts, km_max_iter=1000,
 			kernel_fun=gaussian_kernel, grid_len=100,
-			save_dist_mat=False, load_dist_mat=False):
+			save_dist_mat=False, load_dist_mat=False,
+			load_atlas=None):
 		# Make sure all three datasets are nine-dimensional
 		Xs = [X, X_pos, X_neg]
 		for XX in Xs:
 			assert XX.shape[1] == 9
 		# Initialize using parent constructor
 		super().__init__(X, 2, n_charts, save_dist_mat=save_dist_mat,
-					load_dist_mat=load_dist_mat)
+					load_dist_mat=load_dist_mat,
+					load_atlas=load_atlas)
 		# Save attributes respective to class data
 		self.X_pos = X_pos
 		self.X_neg = X_neg

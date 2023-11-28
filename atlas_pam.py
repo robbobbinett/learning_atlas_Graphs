@@ -140,9 +140,19 @@ class atlas_graph:
 			np.save(file_pre+"_rad"+str(key)+".npy", rad_eff)
 			np.save(file_pre+"_h_mat"+str(key)+".npy", h_mat)
 
+	def load_atlas(self, file_pre, n_charts):
+		self.chart_dict = {}
+		for ind in range(n_charts):
+			x = np.load(file_pre+"_x"+str(ind)+".npy")
+			L = np.load(file_pre+"_L"+str(ind)+".npy")
+			M = np.load(file_pre+"_M"+str(ind)+".npy")
+			rad = np.load(file_pre+"_rad"+str(ind)+".npy")
+			h_mat = np.load(file_pre+"_h_mat"+str(ind)+".npy")
+			self.chart_dict[ind] = (x, L, M, rad, h_mat)
+
 class atlas_pam(atlas_graph):
 	def __init__(self, data, d, n_charts, km_max_iter=1000, save_dist_mat=False,
-			load_dist_mat=False):
+			load_dist_mat=False, load_atlas=False):
 		# Initialize parent class
 		super().__init__(data, d)
 
@@ -178,27 +188,40 @@ class atlas_pam(atlas_graph):
 		#self.dist_mat = dist_mat_from_generator(dist_mat_gen, self.N)
 		print("Done")
 
-		### Perform k-medoids
-		km = fasterpam(self.dist_mat, self.n_charts,
-				max_iter=km_max_iter,
-				n_cpu=1)
+		if isinstance(load_atlas, NoneType):
+			### Perform k-medoids
+			km = fasterpam(self.dist_mat, self.n_charts,
+					max_iter=km_max_iter,
+					n_cpu=1)
 
-		### Create charts from k-medoids
-		for ind in range(self.n_charts):
-			inds = (km.labels == ind)
-			pts = self.X[inds, :]
-			quad_params = quad_fit_full(pts, self.d)
-			x_0 = self.X[km.medoids[ind]]
-			L_p = quad_params["L"]
-			M_p = quad_params["M"]
-			h_mat = quad_params["h_mat"]
-			X_0 = x_0.reshape(1, self.D)
-			dist_vec = euclidean_distances(X_0, pts)
-			rad = np.max(dist_vec)
-			# Save chart
-			self.chart_dict[ind] = (x_0, L_p, M_p, rad, h_mat)
-			# Save boundary function
-			self.boundary_fun_dict[ind] = self.construct_boundary_fun(rad, h_mat)
-			# Update logprobs
-			new_logprobs = self.chart_to_fun(self.X, x_0, L_p, M_p, h_mat)
-			self.max_logprobs = np.max([self.max_logprobs, new_logprobs], axis=0)
+			### Create charts from k-medoids
+			for ind in range(self.n_charts):
+				inds = (km.labels == ind)
+				pts = self.X[inds, :]
+				quad_params = quad_fit_full(pts, self.d)
+				x_0 = self.X[km.medoids[ind]]
+				L_p = quad_params["L"]
+				M_p = quad_params["M"]
+				h_mat = quad_params["h_mat"]
+				X_0 = x_0.reshape(1, self.D)
+				dist_vec = euclidean_distances(X_0, pts)
+				rad = np.max(dist_vec)
+				# Save chart
+				self.chart_dict[ind] = (x_0, L_p, M_p, rad, h_mat)
+				# Save boundary function
+				self.boundary_fun_dict[ind] = self.construct_boundary_fun(rad, h_mat)
+				# Update logprobs
+				new_logprobs = self.chart_to_fun(self.X, x_0, L_p, M_p, h_mat)
+				self.max_logprobs = np.max([self.max_logprobs, new_logprobs], axis=0)
+		else:
+			assert isinstance(load_atlas, str)
+			# Load charts
+			self.load_atlas(load_atlas, self.n_charts)
+			# Save boundary functions and update logprobs
+			for ind in range(self.n_charts):
+				x_0, L_p, M_p, rad, h_mat = self.chart_dict[ind]
+				# Save boundary function
+				self.boundary_fun_dict[ind] = self.construct_boundary_fun(rad, h_mat)
+				# Update logprobs
+				new_logprobs = self.chart_to_fun(self.X, x_0, L_p, M_p, h_mat)
+				self.max_logprobs = np.max([self.max_logprobs, new_logprobs], axis=0)
