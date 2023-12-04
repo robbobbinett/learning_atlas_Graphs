@@ -280,10 +280,6 @@ class atlas_yao(atlas_pam):
 		V_pos, _ = self.evaluate_pos_flow_spectrum(xi_pos,
 					chart_pos, dist_max=dist_max)
 		xi_prime_pos = V_pos[:, 1]
-		"""
-		xi_prime_pos, _ = self.evaluate_pos_flow_spectrum(xi_pos,
-					chart_pos, dist_max=dist_max)
-		"""
 		##### Align initial vector
 		amb_vec_pos = self.xi_xi_prime_chart_to_meta_tan_plane(xi_pos,
 					xi_prime_pos, chart_pos)
