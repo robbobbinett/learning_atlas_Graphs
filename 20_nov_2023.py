@@ -5,9 +5,9 @@
 #       extension: .py
 #       format_name: light
 #       format_version: '1.5'
-#       jupytext_version: 1.10.3
+#       jupytext_version: 1.14.5
 #   kernelspec:
-#     display_name: Python 3
+#     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
@@ -26,7 +26,7 @@ from ripser import ripser
 from persim import plot_diagrams
 import networkx as nx
 
-from atlas_pam import *
+from peyers_utils import color_dict, shape_dict, get_sample_labels_tissue, tissue_list, microbiota_list
 
 # +
 counts_M = pd.read_csv("peyers_data/counts_M.csv", index_col=0)
@@ -80,8 +80,12 @@ def get_most_variable_genes(X, p):
     return top_inds
 
 
+# -
+
+# <h3>Analysis in this notebook will be done with X_tissue_norm</h3>
+
 # +
-p = 50
+p = 3000
 
 """
 top_inds_p = get_most_variable_genes(X_M_norm, p)
@@ -91,12 +95,13 @@ X_M_norm_p = X_M_norm[:, top_inds_p]
 
 top_inds_p = get_most_variable_genes(X_tissue_norm, p)
 
-X_M_norm_p = X_tissue_norm[:, top_inds_p]
+X_tissue_norm_p = X_tissue_norm[:, top_inds_p]
 
 # +
-logX_M_norm_p = np.log10(X_M_norm_p + 1)
-dist_mat_p = euclidean_distances(X_M_norm_p, X_M_norm_p)
-dist_mat_log_p = euclidean_distances(logX_M_norm_p, logX_M_norm_p)
+logX_tissue_norm_p = np.log10(X_tissue_norm_p + 1)
+dist_mat_p = euclidean_distances(X_tissue_norm_p, X_tissue_norm_p)
+dist_mat_log_p = euclidean_distances(logX_tissue_norm_p,
+                                     logX_tissue_norm_p)
 
 look_at_homology(dist_mat_log_p)
 #look_at_homology(dist_mat_p)
@@ -171,7 +176,7 @@ pca = PCA(n_components=3)
 pca.fit(X_tissue_norm)
 
 #Y_M_norm = pca.transform(X_M_norm)
-Y_M_norm = pca.transform(X_tissue_norm)
+Y_tissue_norm = pca.transform(X_tissue_norm)
 
 # +
 fig = plt.figure(figsize=(10, 10))
@@ -184,14 +189,14 @@ for feat in coc_foi:
         ind_set.add(ind)
 ind_list = list(ind_set)
 ind_list.sort()
-Y_M_norm_foi = Y_M_norm[ind_list, :]
-Y_M_norm_not_foi = Y_M_norm[[ind for ind in range(Y_M_norm.shape[0]) if ind not in ind_list], :]
+Y_tissue_norm_foi = Y_tissue_norm[ind_list, :]
+Y_tissue_norm_not_foi = Y_tissue_norm[[ind for ind in range(Y_tissue_norm.shape[0]) if ind not in ind_list], :]
 
-ax.scatter(Y_M_norm_not_foi[:, 0], Y_M_norm_not_foi[:, 1],
-           Y_M_norm_not_foi[:, 2], color="b",
+ax.scatter(Y_tissue_norm_not_foi[:, 0], Y_tissue_norm_not_foi[:, 1],
+           Y_tissue_norm_not_foi[:, 2], color="b",
            s=100)
-ax.scatter(Y_M_norm_foi[:, 0], Y_M_norm_foi[:, 1],
-          Y_M_norm_foi[:, 2], color="orange",
+ax.scatter(Y_tissue_norm_foi[:, 0], Y_tissue_norm_foi[:, 1],
+          Y_tissue_norm_foi[:, 2], color="orange",
           s=100)
 
 ax.set_xlabel("PC 1")
@@ -263,8 +268,8 @@ def path_from_collapsed_boundary(bound_set):
 def draw_path_on_scatter(path, ax):
     for edge in path:
         ind_0, ind_1 = edge
-        pt_0 = Y_M_norm[ind_0, :]
-        pt_1 = Y_M_norm[ind_1, :]
+        pt_0 = Y_tissue_norm[ind_0, :]
+        pt_1 = Y_tissue_norm[ind_1, :]
         xs = [pt_0[0], pt_1[0]]
         ys = [pt_0[1], pt_1[1]]
         zs = [pt_0[2], pt_1[2]]
@@ -292,16 +297,71 @@ ind_set = set()
 for feat in coc_foi:
     for ind in feat:
         ind_set.add(ind)
-Y_M_norm_foi = Y_M_norm[ind_list, :]
-Y_M_norm_not_foi = Y_M_norm[[ind for ind in range(Y_M_norm.shape[0]) if ind not in ind_list], :]
+Y_tissue_norm_foi = Y_tissue_norm[ind_list, :]
+Y_tissue_norm_not_foi = Y_tissue_norm[[ind for ind in range(Y_tissue_norm.shape[0]) if ind not in ind_list], :]
 
-ax.scatter(Y_M_norm_not_foi[:, 0], Y_M_norm_not_foi[:, 1],
-           Y_M_norm_not_foi[:, 2], color="b",
+ax.scatter(Y_tissue_norm_not_foi[:, 0], Y_tissue_norm_not_foi[:, 1],
+           Y_tissue_norm_not_foi[:, 2], color="b",
            s=100)
-ax.scatter(Y_M_norm_foi[:, 0], Y_M_norm_foi[:, 1],
-          Y_M_norm_foi[:, 2], color="orange",
+ax.scatter(Y_tissue_norm_foi[:, 0], Y_tissue_norm_foi[:, 1],
+          Y_tissue_norm_foi[:, 2], color="orange",
           s=100)
 
 draw_path_on_scatter(path_foi, ax)
+
+plt.show()
+
+# +
+sample_tissue_list, sample_microbiota_list = get_sample_labels_tissue()
+
+sample_group_dict = {}
+for tissue in tissue_list:
+    for micro in microbiota_list:
+        key = (tissue, micro)
+        sample_group_dict[key] = np.zeros(78, dtype=bool)
+
+for j, key in enumerate(zip(sample_tissue_list, sample_microbiota_list)):
+    sample_group_dict[key][j] = True
+
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(projection="3d")
+
+for tissue in tissue_list:
+    for micro in microbiota_list:
+        key = (tissue, micro)
+        color = color_dict[tissue]
+        shape = shape_dict[micro]
+        to_keep = sample_group_dict[key]
+        Y_kept = Y_tissue_norm[to_keep, :]
+        ax.scatter(Y_kept[:, 0], Y_kept[:, 1], Y_kept[:, 2],
+                      c=color, marker=shape, s=100)
+
+draw_path_on_scatter(path_foi, ax)
+ax.set_xlabel("PC 1")
+ax.set_ylabel("PC 2")
+ax.set_zlabel("PC 3")
+
+plt.show()
+
+# +
+for ind in range(3):
+    j, k = [i for i in range(3) if i != ind]
+
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot()
+    
+    for tissue in tissue_list:
+        for micro in microbiota_list:
+            key = (tissue, micro)
+            color = color_dict[tissue]
+            shape = shape_dict[micro]
+            to_keep = sample_group_dict[key]
+            Y_kept = Y_tissue_norm[to_keep, :]
+            ax.scatter(Y_kept[:, j], Y_kept[:, k],
+                          c=color, marker=shape)
+
+    draw_path_on_scatter(path_foi, ax)
+    ax.set_xlabel("PC " + str(j))
+    ax.set_ylabel("PC " + str(k))
 
 plt.show()
