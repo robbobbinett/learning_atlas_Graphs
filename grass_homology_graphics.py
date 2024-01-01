@@ -8,7 +8,7 @@ from tqdm import tqdm
 data_dir = "data/grass"
 
 # Sapmle size
-N = 100
+N = 200
 
 def compute_homology(n, k, d, p=11):
 	n_sqr = n**2

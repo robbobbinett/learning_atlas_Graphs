@@ -1,3 +1,5 @@
+from time import time
+
 import numpy as np
 import networkx as nx
 from sklearn.metrics.pairwise import euclidean_distances
@@ -14,13 +16,17 @@ bias_vec_amb = np.array([ 2.,  0., -2.,  0.,  0.,  0., -2., -0.,  2.])
 
 class atlas_yao(atlas_pam):
 	def __init__(self, X, X_pos, X_neg, n_charts, km_max_iter=1000,
-			kernel_fun=gaussian_kernel, grid_len=100):
+			kernel_fun=gaussian_kernel, grid_len=100,
+			save_dist_mat=False, load_dist_mat=False,
+			load_atlas=None):
 		# Make sure all three datasets are nine-dimensional
 		Xs = [X, X_pos, X_neg]
 		for XX in Xs:
 			assert XX.shape[1] == 9
 		# Initialize using parent constructor
-		super().__init__(X, 2, n_charts)
+		super().__init__(X, 2, n_charts, save_dist_mat=save_dist_mat,
+					load_dist_mat=load_dist_mat,
+					load_atlas=load_atlas)
 		# Save attributes respective to class data
 		self.X_pos = X_pos
 		self.X_neg = X_neg
@@ -125,11 +131,14 @@ class atlas_yao(atlas_pam):
 				if dist <= dist_max:
 					kern_coeff = self.kernel(dist)
 					xi_prime_list.append(kern_coeff*xi_prime)
-		Xi_prime = np.vstack(xi_prime_list)
-		cov_mat = np.cov(Xi_prime, rowvar=False)
 		try:
+			Xi_prime = np.vstack(xi_prime_list)
+			cov_mat = np.cov(Xi_prime, rowvar=False)
 			_, V = np.linalg.eigh(cov_mat)
-		except:
+			#eig_vec = V[:, 1]
+			#to_return = eig_vec
+		except (ValueError, np.linalg.LinAlgError) as error:
+			#to_return = np.random.randn(2)
 			raise ValueError(str(xi_prime_list))
 		return V, np.mean(Xi_prime, axis=0)
 
@@ -144,18 +153,21 @@ class atlas_yao(atlas_pam):
 		for j in range(self.N_neg):
 			if to_keep[j]:
 				chart_otra = self.chart_assignments_neg[j]
-				xi_otra = self.Xi_neg_dict[chart][j, :]
+				xi_otra = self.Xi_neg_dict[chart_otra][j, :]
 				xi_prime, dist = self.logarithm_through_graph(xi_0,
 							chart, xi_otra,
 							chart_otra)
 				if dist <= dist_max:
 					kern_coeff = self.kernel(dist)
 					xi_prime_list.append(kern_coeff*xi_prime)
-		Xi_prime = np.vstack(xi_prime_list)
-		cov_mat = np.cov(Xi_prime, rowvar=False)
 		try:
+			Xi_prime = np.vstack(xi_prime_list)
+			cov_mat = np.cov(Xi_prime, rowvar=False)
 			_, V = np.linalg.eigh(cov_mat)
-		except:
+			#eig_vec = V[:, 1]
+			#to_return = eig_vec
+		except (ValueError, np.linalg.LinAlgError) as error:
+			#to_return = np.random.randn(2)
 			raise ValueError(str(xi_prime_list))
 		return V, np.mean(Xi_prime, axis=0)
 
@@ -283,6 +295,10 @@ class atlas_yao(atlas_pam):
 		V_neg, _ = self.evaluate_neg_flow_spectrum(xi_neg,
 					chart_neg, dist_max=dist_max)
 		xi_prime_neg = V_neg[:, 1]
+		"""
+		xi_prime_neg, _ = self.evaluate_neg_flow_spectrum(xi_neg,
+					chart_neg, dist_max=dist_max)
+		"""
 		##### Align initial vector
 		amb_vec_neg = self.xi_xi_prime_chart_to_meta_tan_plane(xi_neg,
 					xi_prime_neg, chart_neg)
@@ -471,7 +487,7 @@ class atlas_yao(atlas_pam):
 		f = boundary_fun(xi)
 		if f >= 0:
 			center, L, M, _, h_mat = self.chart_dict[chart]
-			xi_quad = get_quadatic_and_const_terms(xi)
+			xi_quad = get_quadratic_and_const_terms(xi)
 			x = (M@h_mat.T@xi_quad) + (L@xi) + center
 			dists = []
 			xi_prime_pre = self.xi_xi_prime_chart_to_meta_tan_plane(xi,
@@ -481,7 +497,7 @@ class atlas_yao(atlas_pam):
 				dist = np.linalg.norm(x - center_prime)
 				dists.append(dist)
 			chart = np.argmin(dists)
-			center, L, _, _, _ = self.center_dict[chart]
+			center, L, _, _, _ = self.chart_dict[chart]
 			xi = L.T @ (x - center)
 			xi_prime = self.x_amb_vec_chart_to_meta_tan_project(x,
 						xi_prime_pre, chart)
@@ -535,7 +551,7 @@ class atlas_yao(atlas_pam):
 		f = boundary_fun(xi)
 		if f >= 0:
 			center, L, M, _, h_mat = self.chart_dict[chart]
-			xi_quad = get_quadatic_and_const_terms(xi)
+			xi_quad = get_quadratic_and_const_terms(xi)
 			x = (M@h_mat.T@xi_quad) + (L@xi) + center
 			dists = []
 			xi_prime_pre = self.xi_xi_prime_chart_to_meta_tan_plane(xi,
@@ -545,7 +561,7 @@ class atlas_yao(atlas_pam):
 				dist = np.linalg.norm(x - center_prime)
 				dists.append(dist)
 			chart = np.argmin(dists)
-			center, L, _, _, _ = self.center_dict[chart]
+			center, L, _, _, _ = self.chart_dict[chart]
 			xi = L.T @ (x - center)
 			xi_prime = self.x_amb_vec_chart_to_meta_tan_project(x,
 						xi_prime_pre, chart)
