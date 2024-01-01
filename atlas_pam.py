@@ -169,6 +169,9 @@ class atlas_pam(atlas_graph):
 		print("Done")
 		print("Getting graph from sparse matrix...")
 		self.G = nx.from_scipy_sparse_array(knn_graph)
+		for edge in tqdm(self.G.edges, total=len(self.G.edges)):
+			node_1, node_2 = edge
+			self.G[node_1][node_2]["weight"] = np.linalg.norm(self.X[node_1, :] - self.X[node_2, :])
 		print("Done")
 
 		### Perform Floyd-Warshall on NetworkX
