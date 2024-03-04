@@ -19,6 +19,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.decomposition import PCA
+from umap import UMAP
+from sklearn.manifold import TSNE
 from sklearn.metrics.pairwise import euclidean_distances
 from ripser import ripser
 from persim import plot_diagrams
@@ -130,6 +132,12 @@ plt.show()
 # +
 pca = PCA(n_components=3)
 pca.fit(X_tissue_norm_trim)
+
+umap = UMAP(n_components=3)
+Y_tissue_norm_umap = umap.fit_transform(X_tissue_norm_trim)
+
+tsne = TSNE(n_components=3)
+Y_tissue_norm_tsne = tsne.fit_transform(X_tissue_norm_trim)
 
 #Y_M_norm = pca.transform(X_M_norm)
 Y_tissue_norm = pca.transform(X_tissue_norm_trim)
@@ -288,7 +296,49 @@ ax.set_xlabel("PC 1")
 ax.set_ylabel("PC 2")
 ax.set_zlabel("PC 3")
 
+fig.savefig("pca3_reference.jpg")
+
 plt.show()
+
+plt.close(fig)
+
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(projection="3d")
+
+for tissue in tissue_list:
+    for micro in microbiota_list:
+        key = (tissue, micro)
+        color = color_dict[tissue]
+        shape = shape_dict[micro]
+        to_keep = sample_group_dict[key]
+        Y_kept = Y_tissue_norm_umap[to_keep, :]
+        ax.scatter(Y_kept[:, 0], Y_kept[:, 1], Y_kept[:, 2],
+                      c=color, marker=shape, s=100)
+
+fig.savefig("umap3_reference.jpg")
+
+plt.show()
+
+plt.close(fig)
+
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(projection="3d")
+
+for tissue in tissue_list:
+    for micro in microbiota_list:
+        key = (tissue, micro)
+        color = color_dict[tissue]
+        shape = shape_dict[micro]
+        to_keep = sample_group_dict[key]
+        Y_kept = Y_tissue_norm_tsne[to_keep, :]
+        ax.scatter(Y_kept[:, 0], Y_kept[:, 1], Y_kept[:, 2],
+                      c=color, marker=shape, s=100)
+
+fig.savefig("tsne3_reference.jpg")
+
+plt.show()
+
+plt.close(fig)
 
 # +
 for ind in range(3):
