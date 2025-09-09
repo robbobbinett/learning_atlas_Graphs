@@ -23,4 +23,4 @@ def sample_k9(n_pts):
 	np.save(data_dir+"/klein_uniform_thetas_"+str(n_pts)+".npy", theta_list)
 	np.save(data_dir+"/klein_uniform_phis_"+str(n_pts)+".npy", phi_list)
 
-sample_k9(1000)
+sample_k9(10000)

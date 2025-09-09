@@ -236,6 +236,44 @@ def curvatures_from_trilinear(H):
 		eig_decomps.append(np.linalg.eigh(H[:, :, alpha]))
 	return eig_decomps
 
+def vector_to_quad_vector(vec):
+	d = len(vec)
+	quad_list = vec.tolist()
+	for j in range(d):
+		v_j = vec[j]
+		for k in range(j, d):
+			v_k = vec[k]
+			quad_list.append(v_j * v_k)
+
+	return np.array(quad_list)
+
+def matrix_to_quad_vector_matrix(X):
+	n, d = X.shape
+	quad_matrix_pre = []
+	for j in range(n):
+		x_j = X[j, :]
+		quad_vec = vector_to_quad_vector(x_j)
+		quad_matrix_pre.append(quad_vec)
+
+	return np.vstack(quad_matrix_pre)
+
+def quad_covector_to_covector_and_inner(quad_covector, d):
+	covector = quad_covector[:d]
+	quad_covector_pure = quad_covector[d:]
+	inner_mat = np.zeros((d, d))
+	row_inds, col_inds = np.triu_indices(d)
+	for lin_ind in range(len(row_inds)):
+		row = row_inds[lin_ind]
+		col = col_inds[lin_ind]
+		if row == col:
+			inner_mat[row, col] = quad_covector_pure[lin_ind]
+		else:
+			inner_mat[row, col] = quad_covector_pure[lin_ind] / 2
+			inner_mat[col, row] = quad_covector_pure[lin_ind] / 2
+
+	return covector, inner_mat
+
+
 def generate_equilateral_simplex(d):
 	"""Return the vertices of the 'beta-double-star' triangulation of S^d."""
 	# Standard basis
