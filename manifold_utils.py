@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.metrics.pairwise import euclidean_distances
 import networkx as nx
+from scipy.linalg import sqrtm
 from scipy.spatial import Delaunay
 
 cached_triu_indices = {}
@@ -315,6 +316,47 @@ def lexsort_list_of_tuples(list_o_t):
 	sorted_inds = np.lexsort(arr.T)
 	# Revert to list of tuples
 	return [tuple(arr[ind, :]) for ind in sorted_inds]
+
+def sample_from_ball_individual(d):
+	# Do this by rejection sampling
+	while True:
+		x = 2*np.random.rand(d) - np.ones(d)
+		if np.linalg.norm(x) <= 1:
+			return x
+
+def sample_from_ball(d, n):
+	X_pre = []
+	for _ in range(n):
+		x = sample_from_ball_individual(d)
+		X_pre.append(x)
+
+	return np.vstack(X_pre)
+
+def sample_from_ellipsoid_individual(A, b, c):
+	d = len(b)
+	# Sample from ball
+	x = sample_from_ball_individual(d)
+	# Change coordnates to get ellipsoid
+	A_star = A / c
+	b_star = b / c
+	A_star_inv = np.linalg.inv(A_star)
+	x = sqrtm(A_star) @ x
+	x += A_star_inv @ b_star / 2
+
+	return x
+
+def sample_from_ellipsoid(A, b, c, n):
+	d = b.shape
+	# Sample from ball
+	X = sample_from_ball(d, n)
+	# Change coordnates to get ellipsoid
+	A_star = A / c
+	b_star = b / c
+	A_star_inv = np.linalg.inv(A_star)
+	X = X @ sqrtm(A_star)
+	X += A_star_inv @ b_star / 2
+
+	return X
 
 class EmptyGeodeError(Exception):
 	pass
