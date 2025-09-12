@@ -19,6 +19,8 @@ class MemoryFIFOEnumeration:
 	def __init__(self, start, eps, boundary_fun):
 		# Dimensionaliity of the grid
 		self.d = len(start)
+		# Width of the grid
+		self.eps
 		# FIFO queue
 		self.candidates = []
 		self.candidates.append(tuple(start))
@@ -29,8 +31,8 @@ class MemoryFIFOEnumeration:
 		self.generators = []
 		for j in range(self.d):
 			for sign in [-1, 1]:
-				dx = np.zeros(self.d)
-				dx[j] = sign * eps
+				dx = np.zeros(self.d, dtype=int)
+				dx[j] = sign
 				self.generators.append(dx)
 		# Boundary function for determining whether to
 		# generate children
@@ -43,7 +45,7 @@ class MemoryFIFOEnumeration:
 	def dequeue(self):
 		candidate = self.candidates.pop(0)
 		print(candidate)
-		cand_vec = np.array(candidate)
+		cand_vec = self.eps * np.array(candidate)
 		b_val = self.boundary_fun(cand_vec)
 		if b_val < 0:
 			for gen_vec in self.generators:
@@ -106,6 +108,15 @@ class atlas_general:
 		self.chart_dict[self.n_charts] = (x_0, L, M, h_mat,
 							A, b, c)
 		boundary_fun = self.construct_boundary_fun(x_0, L, M,
+							h_mat, A, b, c)
+		b_0 = boundary_fun(np.zeros(self.d))
+		# Sometimes, origin of learned chart falls slightly
+		# out of boundary
+		if b_0 > 0:
+			c -= (b_0 + 1e-6)
+			self.chart_dict[self.n_charts] = (x_0, L, M, h_mat,
+							A, b, c)
+			boundary_fun = self.construct_boundary_fun(x_0, L, M,
 							h_mat, A, b, c)
 		self.boundary_fun_dict[self.n_charts] = boundary_fun
 		self.n_charts += 1
