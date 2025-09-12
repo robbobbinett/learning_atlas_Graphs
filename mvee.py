@@ -51,7 +51,8 @@ def mvee(X):
     problem.solve()
 
     # Return solution
-    A = P.value
-    b = -c.value
+    Pinv = np.linalg.inv(P.value)
+    A = Pinv.T @ Pinv
+    b = 2 * A @ c.value
 
     return A, b

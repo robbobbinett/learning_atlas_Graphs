@@ -6,6 +6,7 @@ import json
 
 import numpy as np
 
+
 from manifold_utils import LazyNeretinConvolution, quad_fit_full, \
 				get_quadratic_terms, \
 				get_quadratic_and_const_terms, \
@@ -14,11 +15,46 @@ from manifold_utils import LazyNeretinConvolution, quad_fit_full, \
 
 NoneType = type(None)
 
-def kernel_fun(x, y):
-	"""
-	Function to be used as kernel for SVM in atlas_covariant
-	class. Takes
-	"""
+class MemoryFIFOEnumeration:
+	def __init__(self, start, eps, boundary_fun):
+		# Dimensionaliity of the grid
+		self.d = len(start)
+		# FIFO queue
+		self.candidates = []
+		self.candidates.append(tuple(start))
+		# Set of points already visited
+		self.visited = set()
+		self.visited.add(tuple(start))
+		# Grid displacements for generating new observations
+		self.generators = []
+		for j in range(self.d):
+			for sign in [-1, 1]:
+				dx = np.zeros(self.d)
+				dx[j] = sign * eps
+				self.generators.append(dx)
+		# Boundary function for determining whether to
+		# generate children
+		self.boundary_fun = boundary_fun
+
+	def enqueue(self, obj):
+		if not (obj in self.visited):
+			self.candidates.append(obj)
+
+	def dequeue(self):
+		candidate = self.candidates.pop(0)
+		print(candidate)
+		cand_vec = np.array(candidate)
+		b_val = self.boundary_fun(cand_vec)
+		if b_val < 0:
+			for gen_vec in self.generators:
+				child_vec = cand_vec + gen_vec
+				child = tuple(child_vec)
+				self.enqueue(child)
+				self.visited.add(child)
+
+	def enumerate(self):
+		while len(self.candidates) > 0:
+			self.dequeue()
 
 class atlas_general:
 #	def __init__(self, data, d):
@@ -158,19 +194,29 @@ class atlas_general:
 			return -(quart + cubic + quad + quad_long + lin + a)
 		return boundary_fun
 
-	def sample_uniformly_from_chart_by_ind(self, ind, n_pts):
+#	def sample_uniformly_from_chart_by_ind(self, ind, n_pts, eps=0.1):
+	def sample_uniformly_from_chart_by_ind(self, ind, eps=0.1):
+#		boundary_fun = self.boundary_fun_dict[ind]
+#		X_pre = []
+#		_, _, _, _, A, b, c = self.chart_dict[ind]
+#		while len(X_pre) < n_pts:
+#			x = sample_from_ellipsoid_individual(A, b, c)
+#			xi = self.ingest_ambient_point_given_ind(x, ind)
+#			b_val = boundary_fun(xi)
+#			if b_val <= 0:
+#				X_pre.append(x)
+#
+#		X = np.vstack(X_pre)
+#		return X
+		start = np.zeros(self.d)
 		boundary_fun = self.boundary_fun_dict[ind]
-		X_pre = []
-		_, _, _, _, A, b, c = self.chart_dict[ind]
-		while len(X_pre) < n_pts:
-			x = sample_from_ellipsoid_individual(A, b, c)
-			xi = self.ingest_ambient_point_given_ind(x, ind)
-			b_val = boundary_fun(xi)
-			if b_val <= 0:
-				X_pre.append(x)
+		memory_fifo_enumerator = MemoryFIFOEnumeration(start, eps,
+							boundary_fun)
+		memory_fifo_enumerator.enumerate()
 
-		X = np.vstack(X_pre)
-		return X
+		X_pre = list(memory_fifo_enumerator.visited)
+
+		return np.vstack(X_pre)
 
 	def get_num_params_aic(self):
 		# d for x_0
