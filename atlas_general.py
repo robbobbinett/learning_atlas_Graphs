@@ -20,13 +20,13 @@ class MemoryFIFOEnumeration:
 		# Dimensionaliity of the grid
 		self.d = len(start)
 		# Width of the grid
-		self.eps
+		self.eps = eps
 		# FIFO queue
 		self.candidates = []
 		self.candidates.append(tuple(start))
 		# Set of points already visited
 		self.visited = set()
-		self.visited.add(tuple(start))
+		self.visited.add(tuple(start.astype(int)))
 		# Grid displacements for generating new observations
 		self.generators = []
 		for j in range(self.d):
@@ -38,15 +38,18 @@ class MemoryFIFOEnumeration:
 		# generate children
 		self.boundary_fun = boundary_fun
 
+		#DEBUG
+		self.b_val_log = []
+
 	def enqueue(self, obj):
 		if not (obj in self.visited):
 			self.candidates.append(obj)
 
 	def dequeue(self):
 		candidate = self.candidates.pop(0)
-		print(candidate)
-		cand_vec = self.eps * np.array(candidate)
-		b_val = self.boundary_fun(cand_vec)
+		cand_vec = np.array(candidate, dtype=int)
+		b_val = self.boundary_fun(self.eps * cand_vec)
+		self.b_val_log.append(b_val)
 		if b_val < 0:
 			for gen_vec in self.generators:
 				child_vec = cand_vec + gen_vec
@@ -57,20 +60,18 @@ class MemoryFIFOEnumeration:
 	def enumerate(self):
 		while len(self.candidates) > 0:
 			self.dequeue()
+			if len(self.visited) > 10000:
+#				for item in self.visited:
+				for item in self.b_val_log:
+					print(item)
+				raise ValueError
 
 class atlas_general:
-#	def __init__(self, data, d):
 	def __init__(self, d, D):
 		# basic assertions
-#		assert isinstance(data, np.ndarray)
 		assert isinstance(d, int)
-#		assert len(data.shape) == 2, str(data.shape)
 
 		# save input parameters
-#		self.X = data
-#		self.N, self.D = data.shape
-#		self.d = d
-#		self.next_rule = next_rule
 		self.d = d
 		self.D = D
 
@@ -79,7 +80,6 @@ class atlas_general:
 
 		# auxiliary parameters
 		self.n_charts = 0
-#		self.max_logprobs = -np.inf * np.ones(self.N)
 
 		# Store maps for transition boundaries
 		self.boundary_fun_dict = OrderedDict()
@@ -112,12 +112,12 @@ class atlas_general:
 		b_0 = boundary_fun(np.zeros(self.d))
 		# Sometimes, origin of learned chart falls slightly
 		# out of boundary
-		if b_0 > 0:
-			c -= (b_0 + 1e-6)
-			self.chart_dict[self.n_charts] = (x_0, L, M, h_mat,
-							A, b, c)
-			boundary_fun = self.construct_boundary_fun(x_0, L, M,
-							h_mat, A, b, c)
+#		if b_0 > 0:
+#			c -= (b_0 + 1e-6)
+#			self.chart_dict[self.n_charts] = (x_0, L, M, h_mat,
+#							A, b, c)
+#			boundary_fun = self.construct_boundary_fun(x_0, L, M,
+#							h_mat, A, b, c)
 		self.boundary_fun_dict[self.n_charts] = boundary_fun
 		self.n_charts += 1
 
@@ -206,19 +206,7 @@ class atlas_general:
 		return boundary_fun
 
 #	def sample_uniformly_from_chart_by_ind(self, ind, n_pts, eps=0.1):
-	def sample_uniformly_from_chart_by_ind(self, ind, eps=0.1):
-#		boundary_fun = self.boundary_fun_dict[ind]
-#		X_pre = []
-#		_, _, _, _, A, b, c = self.chart_dict[ind]
-#		while len(X_pre) < n_pts:
-#			x = sample_from_ellipsoid_individual(A, b, c)
-#			xi = self.ingest_ambient_point_given_ind(x, ind)
-#			b_val = boundary_fun(xi)
-#			if b_val <= 0:
-#				X_pre.append(x)
-#
-#		X = np.vstack(X_pre)
-#		return X
+	def sample_uniformly_from_chart_by_ind(self, ind, eps=1000.0):
 		start = np.zeros(self.d)
 		boundary_fun = self.boundary_fun_dict[ind]
 		memory_fifo_enumerator = MemoryFIFOEnumeration(start, eps,
