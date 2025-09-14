@@ -173,27 +173,21 @@ class atlas_general:
 	def construct_boundary_fun(self, x_0, L, M, h_mat, A, b, c):
 		h_vec = h_mat[0, :]
 		H = h_mat[1:, :].T
-#		try:
-#			temp = H.T @ M.T
-#		except ValueError:
-#			err_str = f"H.shape: {H.shape}; M.shape: {M.shape}"
-#			raise ValueError(err_str)
+
+#		a = c + np.dot(x_0, A @ x_0) + np.dot(b, x_0)
+#		a_1 = 2 * L.T @ A.T @ x_0 + L.T @ b
+#		a_2 = H.T @ M.T @ A.T @ x_0 + H.T @ M.T @ b / 2
+#		A_2 = L.T @ A @ L
+#		A_3 = L.T @ A @ M @ H
+#		A_4 = H.T @ M.T @ A @ M @ H / 4
+
 		a = c + np.dot(x_0, A @ x_0) + np.dot(b, x_0)
 		a_1 = 2 * L.T @ A.T @ x_0 + L.T @ b
-		a_2 = H.T @ M.T @ A.T @ x_0 + H.T @ M.T @ b / 2
+		a_2 = 2 * H.T @ M.T @ A.T @ x_0 + H.T @ M.T @ b
 		A_2 = L.T @ A @ L
-		A_3 = L.T @ A @ M @ H
-		A_4 = H.T @ M.T @ A @ M @ H / 4
-#		Ainv = np.linalg.inv(A)
-#		y_0 = x_0 + Ainv @ b / 2
-#		h_vec = h_mat[0, :]
-#		H = h_mat[1:, :]
-#		A_4 = H.T @ M.T @ A @ M @ H / 4
-#		A_3 = L.T @ A @ M @ H
-#		A_2b = L.T @ A @ L
-#		A_2c = np.dot(y_0, A @ M @ H)
-#		A_1 = 2 * np.dot(A @ L, y_0)
-#		a = c + np.dot(y_0, A @ y_0)
+		A_3 = 2 * L.T @ A @ M @ H
+		A_4 = H.T @ M.T @ A @ M @ H
+
 		def boundary_fun(tau):
 			tau_quad = get_quadratic_terms(tau)
 
@@ -202,18 +196,26 @@ class atlas_general:
 			quad = np.dot(tau, A_2 @ tau)
 			quad_long = np.dot(a_2, tau_quad)
 			lin = np.dot(a_1, tau)
-			return -(quart + cubic + quad + quad_long + lin + a)
+#			return -(quart + cubic + quad + quad_long + lin + a)
+			return quart + cubic + quad + quad_long + lin + a
 		return boundary_fun
 
 #	def sample_uniformly_from_chart_by_ind(self, ind, n_pts, eps=0.1):
-	def sample_uniformly_from_chart_by_ind(self, ind, eps=1000.0):
+	def sample_uniformly_from_chart_by_ind(self, ind, eps=0.1):
 		start = np.zeros(self.d)
+
+		x_0, L, M, h_mat, _, _, _ = self.chart_dict[ind]
 		boundary_fun = self.boundary_fun_dict[ind]
 		memory_fifo_enumerator = MemoryFIFOEnumeration(start, eps,
 							boundary_fun)
 		memory_fifo_enumerator.enumerate()
 
-		X_pre = list(memory_fifo_enumerator.visited)
+		Xi_pre = list(memory_fifo_enumerator.visited)
+		X_pre = []
+		for xi_pre in Xi_pre:
+			xi = eps * np.array(xi_pre)
+			x = self.xi_chart_to_ambient(xi, x_0, L, M, h_mat)
+			X_pre.append(x)
 
 		return np.vstack(X_pre)
 

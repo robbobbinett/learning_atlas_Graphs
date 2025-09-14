@@ -55,6 +55,7 @@ def mvee(X):
 #    A = Pinv.T @ Pinv
     A = P.value.T @ P.value
     b = -2 * P.value.T @ c.value
+#    b = -2 * P.value @ c.value
     c = np.dot(c.value, c.value) - 1
 
     return A, b, c
