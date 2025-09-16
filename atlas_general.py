@@ -59,7 +59,7 @@ class MemoryFIFOEnumeration:
 		while len(self.candidates) > 0:
 			self.dequeue()
 
-class atlas_general:
+class AtlasGeneral:
 	def __init__(self, d, D):
 		# basic assertions
 		assert isinstance(d, int)

@@ -4,6 +4,8 @@ import sympy as sp
 from tqdm import tqdm
 
 from manifold_utils import *
+from atlas_general import AtlasGeneral
+
 
 twopi = 2*np.pi
 
@@ -101,72 +103,37 @@ def find_closest_theta_phi_brute(x):
 	theta, phi = theta_phi[ind, :]
 	return theta, phi
 
-"""
-class GraphPAM:
-	def __init__(self, dist_mat, k, med_ind_init=None):
-		# Save params
-		self.dist_mat = dist_mat
-		self.k = k
-		self.n = dist_mat.shape[0]
+class RPBKleinOnAtlasGeneral:
+	"""Perform Riemannian Principal Boundary Algorithm on the Klein
+	bottle to discriminate convex and concave patches, using an
+	AtlasGeneral representation"""
+	def __init__(self, atlas, X_pos, X_neg):
+		self.atlas = atlas
+		# If no dense subgraph, create dense subgraph
+		if not hasattr(self.atlas, "G_brute"):
+			self.atlas.construct_dense_graph()
 
-		# Randomly assign initial medoids
-		if isinstance(med_ind_init, NoneType):
-			cond = True # Make sure no repeats
-			while cond:
-				self.med_inds = np.random.randint(self.n, size=(k,))
-				if len(np.unique(self.med_inds)) == k:
-					cond = False
-		else:
-			assert isinstance(med_ind_init, np.ndarray)
-			assert med_ind_init.shape == (k,)
-			self.mid_inds = mid_ind_init
+		# Store concave, convex observations
+		self.X_pos = X_pos
+		self.X_neg = X_neg
+		self.N_pos = self.X_pos.shape[0]
+		self.N_neg = self.X_neg.shape[0]
+		self.chart_assignments_pos = self.assign_charts(self.X_pos)
+		self.chart_assignments_neg = self.assing_charts(self.X_neg)
 
-		# Assign points to initial medoids
-		self.assignment_dict = {}
-		for ind in range(self.n):
-			if ind in self.med_inds:
-				self.assignment_dict[ind] = ind
-			else:
-				dist_vec_pre = self.dist_mat[ind, :]
-				dist_vec = dist_vec_pre[self.med_inds]
-				min_dist_ind_pre = np.argmin(dist_vec)
-				self.assignment_dict[ind] = self.med_inds[min_dist_ind_pre]
+		### Dicts of coordinate chart representations
+		self.Xi_pos_dict = {}
+		self.Xi_neg_dict = {}
+		for chart in range(self.atlas.n_charts):
+			x_0, L, _, _, _, _, _ = self.atlas.chart_dict[chart]
+			self.Xi_pos_dict[chart] = (self.X_pos - x_0) @ L
+			self.Xi_neg_dict[chart] = (self.X_neg - x_0) @ L
 
-		# Compute initial cost
-		self.cost = self.compute_cost()
-
-	def compute_cost(self):
-		cost = 0.0
-		for ind in range(self.n):
-			if ind not in self.med_inds:
-				assigned_ind = self.assignment_dict[ind]
-				cost += self.dist_mat[ind, assigned_ind]
-		return cost
-
-	def perform_pam(self, max_iter=100):
-		cond = True
-		iter_count = 0
-		while cond:
-			cost_best = self.cost
-			med_swap = None
-			not_med_swap = None
-			for ind in range(self.n):
-				if ind not in self.med_inds:
-					for med_ind in self.med_inds:
-						med_ind_temp = np.array([item for item in self.med_inds if item != med_ind else ind])
-						otra = GraphPAM(self.dist_mat, self.k, med_ind_init=med_ind_temp)
-						if otra.cost < cost_best:
-							cost_best = otra.cost
-							med_swap = med_ind
-							not_med_swap = ind
-							del otra
-			if isinstance(med_swap, NoneType) and isinstance(not_med_swap, NoneType):
-				cond = False
-			else:
-				med_ind_temp = np.array([item for item in self.med_inds if item != med_swap else not_med_swap])
-				self.med_inds = med_ind_temp
-				self.compute_cost()
-			if iter_count >= max_iter:
-				cond = False
-			iter_count += 1
-"""
+		### Cache quadratic terms
+		self.T_pos_dict = {}
+		self.T_neg_dict = {}
+		for chart in range(self.atlas.n_charts):
+			Xi_pos = self.Xi_pos_dict[chart]
+			Xi_neg = self.Xi_neg_dict[chart]
+			self.T_pos_dict[chart] = get_quadratic_and_const_terms(Xi_pos)
+			self.T_neg_dict[chart] = get_quadratic_and_const_terms(Xi_neg)
